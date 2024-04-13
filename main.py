@@ -1,18 +1,33 @@
-from typing import List
-import typing
+import os
+from contextlib import asynccontextmanager
+import socket
+import logging
+import logging.handlers
+from fastapi import FastAPI, Request
+from strawberry.asgi import GraphQL
 
-import asyncio
+from uoishelpers.gqlrouter import MountGuardedGQL
 
-from fastapi import FastAPI
-import strawberry
-from strawberry.fastapi import GraphQLRouter
+from src.DBDefinitions import startEngine, ComposeConnectionString
+from src.DBFeeder import initDB
+from src.Dataloaders import createLoaders
+from src.GraphTypeDefinitions import schema
 
-## Definice GraphQL typu (pomoci strawberry https://strawberry.rocks/)
-## Strawberry zvoleno kvuli moznosti mit federovane GraphQL API (https://strawberry.rocks/docs/guides/federation, https://www.apollographql.com/docs/federation/)
-## Definice DB typu (pomoci SQLAlchemy https://www.sqlalchemy.org/)
-## SQLAlchemy zvoleno kvuli moznost komunikovat s DB asynchronne
-## https://docs.sqlalchemy.org/en/14/core/future.html?highlight=select#sqlalchemy.future.select
-from gql_publications.DBDefinitions import startEngine, ComposeConnectionString
+
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s.%(msecs)03d\t%(levelname)s:\t%(message)s', 
+    datefmt='%Y-%m-%dT%I:%M:%S')
+SYSLOGHOST = os.getenv("SYSLOGHOST", None)
+if SYSLOGHOST is not None:
+    [address, strport, *_] = SYSLOGHOST.split(':')
+    assert len(_) == 0, f"SYSLOGHOST {SYSLOGHOST} has unexpected structure, try `localhost:514` or similar (514 is UDP port)"
+    port = int(strport)
+    my_logger = logging.getLogger()
+    my_logger.setLevel(logging.INFO)
+    handler = logging.handlers.SysLogHandler(address=(address, port), socktype=socket.SOCK_DGRAM)
+    #handler = logging.handlers.SocketHandler('10.10.11.11', 611)
+    my_logger.addHandler(handler)
 
 ## Zabezpecuje prvotni inicializaci DB a definovani Nahodne struktury pro "Univerzity"
 # from gql_workflow.DBFeeder import createSystemDataStructureRoleTypes, createSystemDataStructureGroupTypes
@@ -33,7 +48,6 @@ def singleCall(asyncFunc):
 
     return result
 
-from gql_publications.DBFeeder import initDB
 @singleCall
 async def RunOnceAndReturnSessionMaker():
     """Provadi inicializaci asynchronniho db engine, inicializaci databaze a vraci asynchronni SessionMaker.
@@ -42,7 +56,7 @@ async def RunOnceAndReturnSessionMaker():
     print(f'starting engine for "{connectionString}"')
 
     import os
-    makeDrop = os.environ.get("DEMO", "") == "true"
+    makeDrop = os.environ.get("DEMO", "") == "True"
     result = await startEngine(
         connectionstring=connectionString, makeDrop=makeDrop, makeUp=True
     )
@@ -65,56 +79,79 @@ async def RunOnceAndReturnSessionMaker():
     print(f"all done")
     return result
 
+async def get_context(request: Request):
+    asyncSessionMaker = await RunOnceAndReturnSessionMaker()
+        
+    #from src.Dataloaders import createLoadersContext, createUgConnectionContext
+    from src.Dataloaders import createLoadersContext
+    context = createLoadersContext(asyncSessionMaker)
+    # i = Item(query = "")
+    # # i.query = ""
+    # # i.variables = {}
+    # logging.info(f"before sentinel current user is {request.scope.get('user', None)}")
+    # await sentinel(request, i)
+    # logging.info(f"after sentinel current user is {request.scope.get('user', None)}")
+    # connectionContext = createUgConnectionContext(request=request)
+    # result = {**context, **connectionContext}
+    result = {**context}
+    result["request"] = request
+    # result["user"] = request.scope.get("user", None)
+    logging.info(f"context created {result}")
+    return result
 
-from strawberry.asgi import GraphQL
-
-from gql_publications.Dataloaders import createLoaders
-
-class MyGraphQL(GraphQL):
-    """Rozsirena trida zabezpecujici praci se session"""
-
-    async def __call__(self, scope, receive, send):
-        asyncSessionMaker = await RunOnceAndReturnSessionMaker()
-        async with asyncSessionMaker() as session:
-            self._session = session
-            self._user = {"id": "?"}
-            return await GraphQL.__call__(self, scope, receive, send)
-
-    async def get_context(self, request, response):
-        parentResult = await GraphQL.get_context(self, request, response)
-        asyncSessionMaker =  await RunOnceAndReturnSessionMaker()
-        return {
-            **parentResult,
-            "session": self._session,
-            "asyncSessionMaker": asyncSessionMaker,
-            "user": self._user,
-            "all": await createLoaders(asyncSessionMaker)
-        }
-
-
-from gql_publications.GraphTypeDefinitions import schema
-
-## ASGI app, kterou "moutneme"
-graphql_app = MyGraphQL(schema, graphiql=True, allow_queries_via_get=True)
-
-app = FastAPI()
-app.mount("/gql", graphql_app)
-
-
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     initizalizedEngine = await RunOnceAndReturnSessionMaker()
-    return None
+    yield
 
+app = FastAPI(lifespan=lifespan)
+
+DEMO = os.getenv("DEMO", None)
+MountGuardedGQL(app, schema=schema, get_context=get_context, DEMO=os.getenv("DEMO", None))
+
+# region ENV setup tests
+def envAssertDefined(name, default=None):
+    result = os.getenv(name, None)
+    assert result is not None, f"{name} environment variable must be explicitly defined"
+    return result
+
+DEMO = envAssertDefined("DEMO", None)
+JWTPUBLICKEYURL = envAssertDefined("JWTPUBLICKEYURL", None)
+JWTRESOLVEUSERPATHURL = envAssertDefined("JWTRESOLVEUSERPATHURL", None)
+
+assert (DEMO == "True") or (DEMO == "False"), "DEMO environment variable can have only `True` or `False` values"
+DEMO = DEMO == "True"
+
+if DEMO:
+    print("####################################################")
+    print("#                                                  #")
+    print("# RUNNING IN DEMO                                  #")
+    print("#                                                  #")
+    print("####################################################")
+
+    logging.info("####################################################")
+    logging.info("#                                                  #")
+    logging.info("# RUNNING IN DEMO                                  #")
+    logging.info("#                                                  #")
+    logging.info("####################################################")
+else:
+    print("####################################################")
+    print("#                                                  #")
+    print("# RUNNING DEPLOYMENT                               #")
+    print("#                                                  #")
+    print("####################################################")
+
+    logging.info("####################################################")
+    logging.info("#                                                  #")
+    logging.info("# RUNNING DEPLOYMENT                               #")
+    logging.info("#                                                  #")
+    logging.info("####################################################")    
+
+logging.info(f"DEMO = {DEMO}")
+logging.info(f"SYSLOGHOST = {SYSLOGHOST}")
+logging.info(f"JWTPUBLICKEYURL = {JWTPUBLICKEYURL}")
+logging.info(f"JWTRESOLVEUSERPATHURL = {JWTRESOLVEUSERPATHURL}")
+# endregion
 
 print("All initialization is done")
 
-# @app.get('/hello')
-# def hello():
-#    return {'hello': 'world'}
-
-###########################################################################################################################
-#
-# pokud jste pripraveni testovat GQL funkcionalitu, rozsirte apollo/server.js
-#
-###########################################################################################################################

@@ -13,6 +13,8 @@ from sqlalchemy import (
     Boolean,
     Date,
     Float,
+
+    Uuid
 )
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -22,28 +24,13 @@ import uuid
 
 BaseModel = declarative_base()
 
-def newUuidAsString():
-    return f"{uuid.uuid1()}"
 
+def UUIDFKey(comment=None, nullable=True, **kwargs):
+    return Column(Uuid, index=True, comment=comment, nullable=nullable, **kwargs)
 
-def UUIDColumn(name=None):
-    if name is None:
-        return Column(String, primary_key=True, unique=True, default=newUuidAsString)
-    else:
-        return Column(
-            name, String, primary_key=True, unique=True, default=newUuidAsString
-        )
+def UUIDColumn():
+    return Column(Uuid, primary_key=True, comment="primary key", default=uuid)
 
-
-def UUIDFKey(*, ForeignKey=None, nullable=False):
-    if ForeignKey is None:
-        return Column(
-            String, index=True, nullable=nullable
-        )
-    else:
-        return Column(
-            ForeignKey, index=True, nullable=nullable
-        )
 
 # id = Column(UUID(as_uuid=True), primary_key=True, server_default=sqlalchemy.text("uuid_generate_v4()"),)
 
@@ -55,12 +42,12 @@ def UUIDFKey(*, ForeignKey=None, nullable=False):
 ###########################################################################################################################
 
 
-class PlanSubjectModel(BaseModel):
-    """Spravuje data spojena s predmetem"""
+# class PlanSubjectModel(BaseModel):
+#     """Spravuje data spojena s predmetem"""
 
-    __tablename__ = "plan_subjects"
+#     __tablename__ = "plan_subjects"
 
-    id = UUIDColumn()
+#     id = UUIDColumn()
 
 
 class SubjectModel(BaseModel):
@@ -69,57 +56,61 @@ class SubjectModel(BaseModel):
     __tablename__ = "publication_subjects"
 
     id = UUIDColumn()
-    publication_id = Column(ForeignKey("publications.id"), index=True)
+    publication_id = UUIDFKey(nullable=True)#Column(ForeignKey("publications.id")index=True)
     subject_id = UUIDFKey(nullable=True)#Column(ForeignKey("plan_subjects.id"), index=True)
 
     #publication = relationship("PublicationModel")
     #subject = relationship("PlanSubjectModel")
 
+    valid = Column(Boolean, default=True, comment="Indicates whether this entity is valid or invalid")
     created = Column(DateTime, server_default=sqlalchemy.sql.func.now())
     lastchange = Column(DateTime, server_default=sqlalchemy.sql.func.now())
-    createdby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
-    changedby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
+    createdby = UUIDFKey(nullable=True, comment="who's created the entity")#Column(ForeignKey("users.id"), index=True, nullable=True)
+    changedby = UUIDFKey(nullable=True, comment="who's changed the entity")#Column(ForeignKey("users.id"), index=True, nullable=True)
+    rbacobject = UUIDFKey(nullable=True, comment="user or group id, determines access")
 
 class PublicationModel(BaseModel):
+
+    """
+    Represents a Publication entity in the database
+    """
 
     __tablename__ = "publications"
 
     id = UUIDColumn()
     name = Column(String)
-
-    publication_type_id = Column(ForeignKey("publicationtypes.id"), index=True)
-    place = Column(String)
-    published_date = Column(Date)
+    published_date = Column(DateTime)
     reference = Column(String)
     valid = Column(Boolean)
+    place = Column(String)
+
+    publication_type_id = UUIDFKey(nullable=True, comment="ID of the publication type")#Column(Uuid, index=True)
 
     created = Column(DateTime, server_default=sqlalchemy.sql.func.now())
     lastchange = Column(DateTime, server_default=sqlalchemy.sql.func.now())
-    createdby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
-    changedby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
-
-    #author = relationship("AuthorModel", back_populates="publication")
-    #publication_type = relationship(
-    #    "PublicationTypeModel", back_populates="publication"
-    #)
-
+    createdby = UUIDFKey(nullable=True, comment="who's created the entity")#Column(ForeignKey("users.id"), index=True, nullable=True)
+    changedby = UUIDFKey(nullable=True, comment="who's changed the entity")#Column(ForeignKey("users.id"), index=True, nullable=True)
+    rbacobject = UUIDFKey(nullable=True, comment="user or group id, determines access")
 
 class AuthorModel(BaseModel):
     __tablename__ = "publication_authors"
 
     id = UUIDColumn()
-    user_id = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True)
-    publication_id = Column(ForeignKey("publications.id"), index=True)
     order = Column(Integer)
     share = Column(Float)
+
+    publication_id = UUIDFKey(nullable=True, comment="ID of the associated publication")#Column(Uuid, index=True)
+    user_id = Column(Uuid, index=True)
 
     #user = relationship("UserModel", back_populates="author")
     #publication = relationship("PublicationModel", back_populates="author")
 
+    valid = Column(Boolean, default=True, comment="Indicates whether this entity is valid or invalid")
     created = Column(DateTime, server_default=sqlalchemy.sql.func.now())
     lastchange = Column(DateTime, server_default=sqlalchemy.sql.func.now())
     createdby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
     changedby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
+    rbacobject = UUIDFKey(nullable=True, comment="user or group id, determines access")
 
 class PublicationTypeModel(BaseModel):
     __tablename__ = "publicationtypes"
@@ -128,13 +119,15 @@ class PublicationTypeModel(BaseModel):
     name = Column(String)
     name_en = Column(String)
 
-    category_id = Column(ForeignKey("publicationcategories.id"), index=True, nullable=True)
+    category_id = UUIDFKey(nullable=True)#Column(Uuid, index=True, nullable=True)
     #publication = relationship("PublicationModel", back_populates="publication_type")
 
+    valid = Column(Boolean, default=True, comment="Indicates whether this entity is valid or invalid")
     created = Column(DateTime, server_default=sqlalchemy.sql.func.now())
     lastchange = Column(DateTime, server_default=sqlalchemy.sql.func.now())
     createdby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
     changedby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
+    rbacobject = UUIDFKey(nullable=True, comment="user or group id, determines access")
 
 class PublicationCategoryModel(BaseModel):
     __tablename__ = "publicationcategories"
@@ -143,10 +136,13 @@ class PublicationCategoryModel(BaseModel):
     name = Column(String)
     name_en = Column(String)
 
+
+    valid = Column(Boolean, default=True, comment="Indicates whether this entity is valid or invalid")
     created = Column(DateTime, server_default=sqlalchemy.sql.func.now())
     lastchange = Column(DateTime, server_default=sqlalchemy.sql.func.now())
-    createdby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
-    changedby = UUIDFKey(nullable=True)#Column(ForeignKey("users.id"), index=True, nullable=True)
+    createdby = UUIDFKey(nullable=True, comment="who's created the entity")#Column(ForeignKey("users.id"), index=True, nullable=True)
+    changedby = UUIDFKey(nullable=True, comment="who's changed the entity")#Column(ForeignKey("users.id"), index=True, nullable=True)
+    rbacobject = UUIDFKey(nullable=True, comment="user or group id, determines access")
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -189,6 +185,7 @@ def ComposeConnectionString():
     password = os.environ.get("POSTGRES_PASSWORD", "example")
     database = os.environ.get("POSTGRES_DB", "data")
     hostWithPort = os.environ.get("POSTGRES_HOST", "postgres:5432")
+    hostWithPort = os.environ.get("POSTGRES_HOST", "host.docker.internal:5432")
 
     driver = "postgresql+asyncpg"  # "postgresql+psycopg2"
     connectionstring = f"{driver}://{user}:{password}@{hostWithPort}/{database}"
