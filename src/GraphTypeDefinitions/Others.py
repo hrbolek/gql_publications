@@ -32,7 +32,7 @@ from ._GraphResolvers import (
 from src.Dataloaders import getLoadersFromInfo, getUserFromInfo
 
 UserGQLModel = typing.Annotated["UserGQLModel", strawberry.lazy(".externals")]
-SubjectGQLModel = typing.Annotated["SubjectGQLModel", strawberry.lazy(".externals")]
+AcSubjectGQLModel = typing.Annotated["AcSubjectGQLModel", strawberry.lazy(".externals")]
 
 IDType = uuid.UUID
 
@@ -109,11 +109,11 @@ class PublicationGQLModel(BaseGQLModel):
         return await PublicationTypeGQLModel.resolve_reference(info, id=self.publication_type_id)
 
     @strawberry.field(description="""Subjects publication is linked to""")
-    async def subjects(self, info: strawberry.types.Info) -> List["SubjectGQLModel"]:
-        from .externals import SubjectGQLModel
+    async def subjects(self, info: strawberry.types.Info) -> List["AcSubjectGQLModel"]:
+        from .externals import AcSubjectGQLModel
         loader = getLoadersFromInfo(info).SubjectModel
         rows = await loader.filter_by(subject_id=self.id)
-        awaitables = (SubjectGQLModel.resolve_reference(info, row.subject_id) for row in rows)
+        awaitables = (AcSubjectGQLModel.resolve_reference(info, row.subject_id) for row in rows)
         return await asyncio.gather(*awaitables)
 
 
