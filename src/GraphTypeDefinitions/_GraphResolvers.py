@@ -8,7 +8,7 @@ from inspect import signature
 import inspect 
 from functools import wraps
 from ._GraphPermissions import OnlyForAuthentized
-
+from typing import Optional
 from ..Dataloaders import getUserFromInfo
 
 UserGQLModel = typing.Annotated["UserGQLModel", strawberry.lazy(".externals")]
@@ -20,15 +20,15 @@ def resolve_id(self) -> uuid.UUID:
     return self.id
 
 @strawberry.field(description="""Time of last update""", permission_classes=[OnlyForAuthentized])
-def resolve_lastchange(self) -> datetime.datetime:
+def resolve_lastchange(self) -> Optional[datetime.datetime]:
     return self.lastchange
 
 @strawberry.field(description="""Entity name """, permission_classes=[OnlyForAuthentized])
-def resolve_name(self) -> str:
+def resolve_name(self) -> Optional[str]:
     return self.name
 
 @strawberry.field(description="""Entity english name""", permission_classes=[OnlyForAuthentized])
-def resolve_name_en(self) -> str:
+def resolve_name_en(self) -> Optional[str]:
     result = self.name_en if self.name_en else ""
     return result
 
@@ -37,15 +37,15 @@ def resolve_amount(self) -> float:
     return self.amount
 
 @strawberry.field(description="""Entity start date""")
-def resolve_startdate(self) -> datetime.date:
+def resolve_startdate(self) -> Optional[datetime.date]:
     return self.startdate
 
 @strawberry.field(description="""Entity end date""")
-def resolve_enddate(self) -> datetime.date:
+def resolve_enddate(self) -> Optional[datetime.date]:
     return self.enddate
 
 @strawberry.field(description="""Validity of event""", permission_classes=[OnlyForAuthentized])
-def resolve_valid(self) -> bool:
+def resolve_valid(self) -> Optional[bool]:
     return self.valid
 
 

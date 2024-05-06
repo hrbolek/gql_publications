@@ -71,13 +71,13 @@ class PublicationGQLModel(BaseGQLModel):
     id = resolve_id
     name = resolve_name
 
-    created = resolve_created,
-    lastchange = resolve_lastchange,
-    created_by = resolve_createdby,
-    changed_by = resolve_changedby,
+    created = resolve_created
+    lastchange = resolve_lastchange
+    created_by = resolve_createdby
+    changed_by = resolve_changedby
 
     @strawberry.field(description="""published year""")
-    def published_date(self) -> datetime.date:
+    def published_date(self) -> datetime.datetime:
         return self.published_date
 
     @strawberry.field(description="""place""")
@@ -174,9 +174,11 @@ class PublicationInputWhereFilter:
 
 @strawberry.input(description="")
 class PublicationUpdateGQLModel:
+    id: IDType
+    lastchange: datetime.datetime
     name: Optional[str] = None
     place: Optional[str] = None
-    published_date: Optional[datetime.date] = None
+    published_date: Optional[datetime.datetime] = None
     reference: Optional[str] = None
     publication_type_id: Optional[IDType] = None
     valid: Optional[bool] = None
@@ -187,7 +189,7 @@ class PublicationInsertGQLModel:
     id: Optional[IDType] = None
     name: Optional[str] = None
     place: Optional[str] = None
-    published_date: Optional[datetime.date] = None
+    published_date: Optional[datetime.datetime] = None
     reference: Optional[str] = None
     publication_type_id: Optional[IDType] = None
     valid: Optional[bool] = None
@@ -288,25 +290,26 @@ class PublicationAuthorUpdateGQLModel:
     lastchange: datetime.datetime = strawberry.field(description="Timestamp of last change")
 
     valid: Optional[bool] = strawberry.field(description="Indicates whether the data is valid or not (optional)", default=None)
-    user_id: Optional[uuid.UUID] = strawberry.field(description="The ID of the data type",default=None)
+    user_id: Optional[uuid.UUID] = strawberry.field(description="The ID of the data type", default=None)
     order: Optional[int] = strawberry.field(description="The order of the Author in the publication")
-    share: Optional[float] = strawberry.field(description="The share of the Author in the publication",default=None)
+    share: Optional[float] = strawberry.field(description="The share of the Author in the publication", default=None)
     changedby: strawberry.Private[uuid.UUID] = None    
 
 @strawberry.input(description="")
 class PublicationAuthorInsertGQLModel:
     publication_id: uuid.UUID = strawberry.field(description="The ID of the associated publication")
     user_id: uuid.UUID = strawberry.field(description="The ID of the associated user")
+    id: Optional[IDType] = strawberry.field(description="The ID - primary key")
 
     order: Optional[int] = strawberry.field(description="The order of the Author in the publication")
-    share: Optional[float] = strawberry.field(description="The share of the Author in the publication",default=None)
+    share: Optional[float] = strawberry.field(description="The share of the Author in the publication", default=None)
     valid: Optional[bool] = strawberry.field(description="Indicates whether the data is valid or not (optional)", default=True)
     createdby: strawberry.Private[uuid.UUID] = None
 
 @strawberry.type(description="Result of mutation")
 class PublicationAuthorResultGQLModel:
     id: IDType = strawberry.field(description="The ID of the project", default=None)
-    msg: str = strawberry.field(description="Result of the operation (OK/Fail)", default=None)
+    msg: str = strawberry.field(description="Result of the operation (ok/fail)", default=None)
 
     @strawberry.field(description="Returns the project")
     async def author(self, info: strawberry.types.Info) -> Optional["PublicationAuthorGQLModel"]:
@@ -404,28 +407,28 @@ author_page = strawberry.field(
 from typing import Optional
 import datetime
 
-@strawberry.input(description="")
-class PublicationInsertGQLModel:
-    name: str
+# @strawberry.input(description="")
+# class PublicationInsertGQLModel:
+#     name: str
     
-    id: Optional[IDType] = None
-    publication_type_id: Optional[IDType] = None
-    place: Optional[str] = ""
-    published_date: Optional[datetime.datetime] = datetime.datetime.now()
-    reference: Optional[str] = ""
-    valid: Optional[bool] = True
+#     id: Optional[IDType] = None
+#     publication_type_id: Optional[IDType] = None
+#     place: Optional[str] = ""
+#     published_date: Optional[datetime.datetime] = datetime.datetime.now()
+#     reference: Optional[str] = ""
+#     valid: Optional[bool] = True
 
-@strawberry.input(description="")
-class PublicationUpdateGQLModel:
-    lastchange: datetime.datetime
-    id: IDType
+# @strawberry.input(description="")
+# class PublicationUpdateGQLModel:
+#     lastchange: datetime.datetime
+#     id: IDType
 
-    name: Optional[str] = None
-    publication_type_id: Optional[IDType] = None
-    place: Optional[str] = None
-    published_date: Optional[datetime.datetime] = None
-    reference: Optional[str] = None
-    valid: Optional[bool] = None
+#     name: Optional[str] = None
+#     publication_type_id: Optional[IDType] = None
+#     place: Optional[str] = None
+#     published_date: Optional[datetime.datetime] = None
+#     reference: Optional[str] = None
+#     valid: Optional[bool] = None
     
     
 @strawberry.type(description="")
