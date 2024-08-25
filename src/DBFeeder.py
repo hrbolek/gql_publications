@@ -336,8 +336,8 @@ def get_demodata():
 
 async def initDB(asyncSessionMaker):
 
-    defaultNoDemo = "False"
-    if defaultNoDemo == os.environ.get("DEMO", defaultNoDemo):
+    DEMODATA = os.environ.get("DEMODATA", None) in ["True", "true"]   
+    if not DEMODATA:
         dbModels = [
             PublicationCategoryModel,
             PublicationTypeModel,
