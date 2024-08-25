@@ -316,8 +316,8 @@ class PublicationAuthorInsertGQLModel:
 class PublicationAuthorResultGQLModel:
     id: IDType = strawberry.field(description="The ID of the project", default=None)
     msg: str = strawberry.field(description="Result of the operation (ok/fail)", default=None)
-    user_id: strawberry.private[uuid.UUID]
-    publication_id: strawberry.private[uuid.UUID]
+    user_id: strawberry.Private[uuid.UUID]
+    publication_id: strawberry.Private[uuid.UUID]
 
     @classmethod
     def fromInsert(i: PublicationAuthorInsertGQLModel):
