@@ -1,0 +1,15 @@
+query ById($id: UUID!) {
+  authorById(id: $id) {
+    ...Author
+  }
+}
+
+fragment Author on PublicationAuthorGQLModel {
+  __typename
+  id
+  lastchange
+  publication { id name }
+  order
+  share
+  user { id }
+}

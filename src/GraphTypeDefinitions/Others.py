@@ -47,10 +47,12 @@ class PublicationTypeGQLModel(BaseGQLModel):
     id = resolve_id
     name = resolve_name
 
-    created = resolve_created,
-    lastchange = resolve_lastchange,
-    created_by = resolve_createdby,
-    changed_by = resolve_changedby,
+    created = resolve_created
+    lastchange = resolve_lastchange
+    created_by = resolve_createdby
+    changed_by = resolve_changedby
+    createdby = resolve_createdby
+    changedby = resolve_changedby
 
     @strawberry.field(description="""List of publications with this type""")
     async def publications(
@@ -75,6 +77,8 @@ class PublicationGQLModel(BaseGQLModel):
     lastchange = resolve_lastchange
     created_by = resolve_createdby
     changed_by = resolve_changedby
+    createdby = resolve_createdby
+    changedby = resolve_changedby
 
     @strawberry.field(description="""published year""")
     def published_date(self) -> datetime.datetime:
@@ -132,6 +136,8 @@ class PublicationAuthorGQLModel(BaseGQLModel):
 
     created = resolve_created,
     lastchange = resolve_lastchange,
+    createdby = resolve_createdby,
+    changedby = resolve_changedby,
     created_by = resolve_createdby,
     changed_by = resolve_changedby,
 
@@ -299,10 +305,10 @@ class PublicationAuthorUpdateGQLModel:
 class PublicationAuthorInsertGQLModel:
     publication_id: uuid.UUID = strawberry.field(description="The ID of the associated publication")
     user_id: uuid.UUID = strawberry.field(description="The ID of the associated user")
-    id: Optional[IDType] = strawberry.field(description="The ID - primary key")
+    id: Optional[IDType] = strawberry.field(description="The ID - primary key", default_factory=lambda:uuid.uuid4())
 
-    order: Optional[int] = strawberry.field(description="The order of the Author in the publication")
-    share: Optional[float] = strawberry.field(description="The share of the Author in the publication", default=None)
+    order: Optional[int] = strawberry.field(description="The order of the Author in the publication", default=1)
+    share: Optional[float] = strawberry.field(description="The share of the Author in the publication", default=50)
     valid: Optional[bool] = strawberry.field(description="Indicates whether the data is valid or not (optional)", default=True)
     createdby: strawberry.Private[uuid.UUID] = None
 
@@ -310,12 +316,28 @@ class PublicationAuthorInsertGQLModel:
 class PublicationAuthorResultGQLModel:
     id: IDType = strawberry.field(description="The ID of the project", default=None)
     msg: str = strawberry.field(description="Result of the operation (ok/fail)", default=None)
+    user_id: strawberry.private[uuid.UUID]
+    publication_id: strawberry.private[uuid.UUID]
 
-    @strawberry.field(description="Returns the project")
+    @classmethod
+    def fromInsert(i: PublicationAuthorInsertGQLModel):
+        return PublicationAuthorResultGQLModel(i.id, i.user_id, i.publication_id, msg="ok")
+    
+    @strawberry.field(description="Returns the author")
     async def author(self, info: strawberry.types.Info) -> Optional["PublicationAuthorGQLModel"]:
         result = await PublicationGQLModel.resolve_reference(info, self.id)
         return result
 
+    @strawberry.field(description="Returns the publication")
+    async def publication(self, info: strawberry.types.Info) -> Optional["PublicationGQLModel"]:
+        result = await PublicationGQLModel.resolve_reference(info, self.publication_id)
+        return result
+
+    @strawberry.field(description="Returns the publication")
+    async def user(self, info: strawberry.types.Info) -> Optional["UserGQLModel"]:
+        from .externals import UserGQLModel
+        result = await UserGQLModel.resolve_reference(info, self.user_id)
+        return result
 
 @strawberry.field(description="""Updates an author""")
 async def publication_author_update(

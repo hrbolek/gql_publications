@@ -5,6 +5,7 @@ import logging
 import logging.handlers
 from fastapi import FastAPI, Request
 from strawberry.asgi import GraphQL
+import asyncio
 
 from uoishelpers.gqlrouter import MountGuardedGQL
 
@@ -56,7 +57,7 @@ async def RunOnceAndReturnSessionMaker():
     print(f'starting engine for "{connectionString}"')
 
     import os
-    makeDrop = os.environ.get("DEMO", "") == "True"
+    makeDrop = os.environ.get("DEMODATA", "") in ["True", "true"]
     result = await startEngine(
         connectionstring=connectionString, makeDrop=makeDrop, makeUp=True
     )
@@ -67,7 +68,8 @@ async def RunOnceAndReturnSessionMaker():
     #
     # zde definujte do funkce asyncio.gather
     # vlozte asynchronni funkce, ktere maji data uvest do prvotniho konzistentniho stavu
-    await initDB(result)
+    # await initDB(result)
+    asyncio.create_task(initDB(result))
     # await asyncio.gather( # concurency running :)
     # sem lze dat vsechny funkce, ktere maji nejak inicializovat databazi
     # musi byt asynchronniho typu (async def ...)
@@ -119,8 +121,8 @@ DEMO = envAssertDefined("DEMO", None)
 JWTPUBLICKEYURL = envAssertDefined("JWTPUBLICKEYURL", None)
 JWTRESOLVEUSERPATHURL = envAssertDefined("JWTRESOLVEUSERPATHURL", None)
 
-assert (DEMO == "True") or (DEMO == "False"), "DEMO environment variable can have only `True` or `False` values"
-DEMO = DEMO == "True"
+assert (DEMO in ["True", "true", "False", "false"]), "DEMO environment variable can have only `True` or `False` values"
+DEMO = DEMO in ["True", "true"]
 
 if DEMO:
     print("####################################################")

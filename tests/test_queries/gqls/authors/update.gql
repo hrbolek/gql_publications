@@ -1,0 +1,19 @@
+mutation ($id: UUID!, $lastchange: DateTime!, $user_id: UUID!, $share: Float!, $order: Int!){
+  result: publicationAuthorUpdate(author: {id: $id, lastchange: $lastchange, userId: $user_id, share: $share, order: $order}) {
+    id
+    msg
+    result: author{
+      ...Author
+    }
+  }
+}
+
+fragment Author on PublicationAuthorGQLModel {
+  __typename
+  id
+  lastchange
+  publication { id name }
+  order
+  share
+  user { id }
+}

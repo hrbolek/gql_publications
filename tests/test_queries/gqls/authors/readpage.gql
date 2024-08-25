@@ -1,0 +1,15 @@
+query Page($skip: Int, $limit: Int, $where: PublicationAuthorInputWhereFilter){
+  authorPage(skip: $skip, limit: $limit, where: $where){
+    ...Author
+  }
+}
+
+fragment Author on PublicationAuthorGQLModel {
+  __typename
+  id
+  lastchange
+  publication { id name }
+  order
+  share
+  user { id }
+}
