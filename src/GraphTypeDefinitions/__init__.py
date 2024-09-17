@@ -80,5 +80,5 @@ class Mutation:
 # dostupne rozsireni, ktere tento prvek federace implementuje.
 #
 ###########################################################################################################################
-from .externals import GroupGQLModel, UserGQLModel
-schema = strawberry.federation.Schema(Query, mutation=Mutation, types=(GroupGQLModel, UserGQLModel))
+from .externals import GroupGQLModel, UserGQLModel, AcSubjectGQLModel
+schema = strawberry.federation.Schema(Query, mutation=Mutation, types=(GroupGQLModel, UserGQLModel, AcSubjectGQLModel))
